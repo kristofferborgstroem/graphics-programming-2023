@@ -1,13 +1,19 @@
 #include <ituGL/core/DeviceGL.h>
 #include <ituGL/application/Window.h>
+#include <ituGL/geometry/VertexArrayObject.h>
+#include <ituGL/geometry/VertexBufferObject.h>
+#include <ituGL/geometry/VertexAttribute.h>
+#include <ituGL/geometry/ElementBufferObject.h>
 #include <iostream>
+#include <math.h>
+#include <vector>
 
 int buildShaderProgram();
 void processInput(GLFWwindow* window);
 
 // settings
 const unsigned int SCR_WIDTH = 800;
-const unsigned int SCR_HEIGHT = 600;
+const unsigned int SCR_HEIGHT = 800;
 
 int main()
 {
@@ -39,30 +45,40 @@ int main()
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
-    float vertices[] = {
-        -0.5f, -0.5f, 0.0f, // left  
-         0.5f, -0.5f, 0.0f, // right 
-         0.0f,  0.5f, 0.0f  // top   
-    };
 
-    unsigned int VBO, VAO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
+    int num_triangles = 17;
+    std::vector<float> vertices((num_triangles + 1) * 3);
+
+    std::vector<int> indices;
+    for (int i = 1; i <= num_triangles; ++i) { // [1..8] (0, 2, 1).. (0, 3, 2)
+        indices.push_back(0);
+        indices.push_back(i == num_triangles ? 1 : i + 1);
+        indices.push_back(i);
+    }
+
+    VertexArrayObject vao;
+    VertexBufferObject vbo;
+    ElementBufferObject ebo;
+
     // bind the Vertex Array Object first, then bind and set vertex buffer(s), and then configure vertex attributes(s).
-    glBindVertexArray(VAO);
+    vao.Bind();
+    vbo.Bind();
+    vbo.AllocateData<float>(std::span(vertices));
 
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    VertexAttribute position(Data::Type::Float, 3);
+    vao.SetAttribute(0, position, 0);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
+    ebo.Bind();
+    ebo.AllocateData<int>(std::span(indices));
+
 
     // note that this is allowed, the call to glVertexAttribPointer registered VBO as the vertex attribute's bound vertex buffer object so afterwards we can safely unbind
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    VertexBufferObject::Unbind();
 
     // You can unbind the VAO afterwards so other VAO calls won't accidentally modify this VAO, but this rarely happens. Modifying other
     // VAOs requires a call to glBindVertexArray anyways so we generally don't unbind VAOs (nor VBOs) when it's not directly necessary.
-    glBindVertexArray(0);
+    VertexArrayObject::Unbind();
+    ElementBufferObject::Unbind();
 
 
     // uncomment this call to draw in wireframe polygons.
@@ -70,20 +86,45 @@ int main()
 
     // render loop
     // -----------
+
+    float time = 0.0f;
+    float rotationSpeed = 180.0f;
     while (!window.ShouldClose())
     {
         // input
         // -----
         processInput(window.GetInternalWindow());
+        float current = glfwGetTime();
+        float delta = current - time;
+        time = current;
+        float angle = time * rotationSpeed;
 
         // render
         // ------
-        deviceGL.Clear(0.2f, 0.3f, 0.3f, 1.0f);
+        deviceGL.Clear(0.7f, 0.3f, 0.3f, 1.0f);
 
-        // draw our first triangle
+        // Draw rotating cube
+        
         glUseProgram(shaderProgram);
-        glBindVertexArray(VAO); // seeing as we only have a single VAO there's no need to bind it every time, but we'll do so to keep things a bit more organized
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+        vbo.Bind();
+
+        vertices.clear();
+        vertices.push_back(0);
+        vertices.push_back(0);
+        vertices.push_back(0);
+        float deltaAngle = 360.0f / (float) num_triangles;
+        float PI = 3.14;
+        for (int i = 0; i < num_triangles; ++i) {
+            float radians = (i * deltaAngle + angle) * PI / 180.0f;
+            vertices.push_back(sin(radians));
+            vertices.push_back(cos(radians));
+            vertices.push_back(0.0f);
+        }
+        vbo.UpdateData<float>(std::span(vertices), 0);
+        vao.Bind();
+        //glBindVertexArray(VAO); // seeing as we only have a single VAO there's no need to bind it every time, but we'll do so to keep things a bit more organized
+        //glDrawArrays(GL_TRIANGLES, 0, 6);
+        glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
         // glBindVertexArray(0); // no need to unbind it every time 
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
@@ -94,8 +135,8 @@ int main()
 
     // optional: de-allocate all resources once they've outlived their purpose:
     // ------------------------------------------------------------------------
-    glDeleteVertexArrays(1, &VAO);
-    glDeleteBuffers(1, &VBO);
+    //glDeleteVertexArrays(1, &VAO);
+    //glDeleteBuffers(1, &VBO);
     glDeleteProgram(shaderProgram);
 
     // glfw: terminate, clearing all previously allocated GLFW resources.
@@ -126,7 +167,7 @@ int buildShaderProgram()
         "out vec4 FragColor;\n"
         "void main()\n"
         "{\n"
-        "   FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);\n"
+        "   FragColor = vec4(0.1f, 0.2f, 0.6f, 1.0f);\n"
         "}\n\0";
 
     // vertex shader
