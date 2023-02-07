@@ -54,5 +54,4 @@ void BufferObject::UpdateData(std::span<const std::byte> data, size_t offset)
     // (todo) 00.5: Update buffer subdata
     Target target = GetTarget();
     glBufferSubData(target, offset, data.size_bytes(), data.data());
-
 }

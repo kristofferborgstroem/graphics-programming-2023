@@ -4,6 +4,7 @@
 #include <ituGL/geometry/VertexBufferObject.h>
 #include <ituGL/geometry/VertexAttribute.h>
 #include <ituGL/geometry/ElementBufferObject.h>
+#include <ituGL/core/Color.h>
 #include <iostream>
 #include <math.h>
 #include <vector>
@@ -71,15 +72,15 @@ int main()
     ebo.Bind();
     ebo.AllocateData<int>(std::span(indices));
 
-
     // note that this is allowed, the call to glVertexAttribPointer registered VBO as the vertex attribute's bound vertex buffer object so afterwards we can safely unbind
     VertexBufferObject::Unbind();
 
     // You can unbind the VAO afterwards so other VAO calls won't accidentally modify this VAO, but this rarely happens. Modifying other
     // VAOs requires a call to glBindVertexArray anyways so we generally don't unbind VAOs (nor VBOs) when it's not directly necessary.
     VertexArrayObject::Unbind();
-    ElementBufferObject::Unbind();
 
+    // Now we can unbind the EBO as well
+    ElementBufferObject::Unbind();
 
     // uncomment this call to draw in wireframe polygons.
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -88,7 +89,7 @@ int main()
     // -----------
 
     float time = 0.0f;
-    float rotationSpeed = 180.0f;
+    float rotationSpeed = 10.0f;
     while (!window.ShouldClose())
     {
         // input
@@ -101,7 +102,7 @@ int main()
 
         // render
         // ------
-        deviceGL.Clear(0.7f, 0.3f, 0.3f, 1.0f);
+        deviceGL.Clear(Color(0.7f, 0.3f, 0.3f, 1.0f));
 
         // Draw rotating cube
         
@@ -125,7 +126,11 @@ int main()
         //glBindVertexArray(VAO); // seeing as we only have a single VAO there's no need to bind it every time, but we'll do so to keep things a bit more organized
         //glDrawArrays(GL_TRIANGLES, 0, 6);
         glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
-        // glBindVertexArray(0); // no need to unbind it every time 
+        // glBindVertexArray(0); // no need to unbind it every time
+        vao.Bind(); // seeing as we only have a single VAO there's no need to bind it every time, but we'll do so to keep things a bit more organized
+        //glDrawArrays(GL_TRIANGLES, 0, vertexCount);
+        glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
+        // VertexArrayObject::Unbind(); // no need to unbind it every time
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
@@ -135,8 +140,6 @@ int main()
 
     // optional: de-allocate all resources once they've outlived their purpose:
     // ------------------------------------------------------------------------
-    //glDeleteVertexArrays(1, &VAO);
-    //glDeleteBuffers(1, &VBO);
     glDeleteProgram(shaderProgram);
 
     // glfw: terminate, clearing all previously allocated GLFW resources.

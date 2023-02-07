@@ -46,9 +46,10 @@ void VertexArrayObject::SetAttribute(GLuint location, const VertexAttribute& att
     const unsigned char* pointer = nullptr; // Actual base pointer is in VBO
     pointer += offset;
 
-    // (todo) 00.1: Set the VertexAttribute pointer in that location
+    // (todo) 00.1: Finally, we enable the VertexAttribute in that location
+    // Set the VertexAttribute pointer in this location
     glVertexAttribPointer(location, components, type, normalized, stride, pointer);
 
-    // (todo) 00.1: Finally, we enable the VertexAttribute in that location
+    // Finally, we enable the VertexAttribute in this location
     glEnableVertexAttribArray(location);
 }
