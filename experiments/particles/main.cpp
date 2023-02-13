@@ -2,6 +2,6 @@
 
 int main()
 {
-    Particles terrainApplication;
+    TerrainApplication terrainApplication;
     return terrainApplication.Run();
 }

@@ -8,10 +8,10 @@
 // (todo) 01.1: Include the libraries you need
 
 
-class Particles : public Application
+class TerrainApplication : public Application
 {
 public:
-    Particles();
+    TerrainApplication();
 
 protected:
     void Initialize() override;

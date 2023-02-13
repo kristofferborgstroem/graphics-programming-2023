@@ -36,12 +36,12 @@ struct Vector3
 
 
 
-Particles::Particles()
+TerrainApplication::TerrainApplication()
     : Application(800, 800, "Terrain demo"), m_gridX(128), m_gridY(128), m_shaderProgram(0)
 {
 }
 
-void Particles::Initialize()
+void TerrainApplication::Initialize()
 {
     Application::Initialize();
 
@@ -166,14 +166,14 @@ void Particles::Initialize()
 
 }
 
-void Particles::Update()
+void TerrainApplication::Update()
 {
     Application::Update();
 
     UpdateOutputMode();
 }
 
-void Particles::Render()
+void TerrainApplication::Render()
 {
     Application::Render();
 
@@ -192,12 +192,12 @@ void Particles::Render()
 
 }
 
-void Particles::Cleanup()
+void TerrainApplication::Cleanup()
 {
     Application::Cleanup();
 }
 
-void Particles::BuildShaders()
+void TerrainApplication::BuildShaders()
 {
     const char* vertexShaderSource = "#version 330 core\n"
         "layout (location = 0) in vec3 aPos;\n"
@@ -284,7 +284,7 @@ void Particles::BuildShaders()
     m_shaderProgram = shaderProgram;
 }
 
-void Particles::UpdateOutputMode()
+void TerrainApplication::UpdateOutputMode()
 {
     for (int i = 0; i <= 4; ++i)
     {
