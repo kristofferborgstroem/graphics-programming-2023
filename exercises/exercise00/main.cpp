@@ -50,7 +50,7 @@ int main()
     int num_triangles = 17;
     std::vector<float> vertices((num_triangles + 1) * 3);
 
-    std::vector<int> indices;
+    std::vector<unsigned int> indices;
     for (int i = 1; i <= num_triangles; ++i) { // [1..8] (0, 2, 1).. (0, 3, 2)
         indices.push_back(0);
         indices.push_back(i == num_triangles ? 1 : i + 1);
@@ -70,7 +70,7 @@ int main()
     vao.SetAttribute(0, position, 0);
 
     ebo.Bind();
-    ebo.AllocateData<int>(std::span(indices));
+    ebo.AllocateData<unsigned int>(std::span(indices));
 
     // note that this is allowed, the call to glVertexAttribPointer registered VBO as the vertex attribute's bound vertex buffer object so afterwards we can safely unbind
     VertexBufferObject::Unbind();

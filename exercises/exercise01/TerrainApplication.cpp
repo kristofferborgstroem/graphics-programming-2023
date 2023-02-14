@@ -58,7 +58,7 @@ void Particles::Initialize()
 
     std::vector<Vertex> temp;
     std::vector<Vertex> vertices;
-    std::vector<int> indices;
+    std::vector<unsigned int> indices;
 
     // (todo) 01.1: Fill in vertex data
     /*
@@ -154,7 +154,7 @@ void Particles::Initialize()
 
     // (todo) 01.5: Initialize EBO
     ebo.Bind();
-    ebo.AllocateData<int>(std::span(indices));
+    ebo.AllocateData<unsigned int>(std::span(indices));
     indicesSize = indices.size();
 
     // (todo) 01.1: Unbind VAO, and VBO
