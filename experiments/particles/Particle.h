@@ -8,6 +8,11 @@
 
 class Particle {
 
+public:
+
+private:
+    float velocity = 0.0f;
+
 };
 
 

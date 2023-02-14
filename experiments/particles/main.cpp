@@ -1,7 +1,7 @@
-#include "TerrainApplication.h"
+#include "Particles.h"
 
 int main()
 {
-    TerrainApplication terrainApplication;
-    return terrainApplication.Run();
+    Particles particles;
+    return particles.Run();
 }

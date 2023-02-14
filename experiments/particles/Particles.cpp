@@ -1,47 +1,27 @@
-#include "TerrainApplication.h"
+#include "Particles.h"
 
 // (todo) 01.1: Include the libraries you need
 
 #include <ituGL/core/Color.h>
 #include <ituGL/geometry/VertexAttribute.h>
-#include <cmath>
 #include <iostream>
-#include <vector>
+
 
 #define STB_PERLIN_IMPLEMENTATION
 #include <stb_perlin.h>
 
 // Helper structures. Declared here only for this exercise
-struct Vector2
-{
-    Vector2() : Vector2(0.f, 0.f) {}
-    Vector2(float x, float y) : x(x), y(y) {}
-    float x, y;
-};
-
-struct Vector3
-{
-    Vector3() : Vector3(0.f,0.f,0.f) {}
-    Vector3(float x, float y, float z) : x(x), y(y), z(z) {}
-    float x, y, z;
-
-    Vector3 Normalize() const
-    {
-        float length = std::sqrt(1 + x * x + y * y);
-        return Vector3(x / length, y / length, z / length);
-    }
-};
 
 // (todo) 01.8: Declare an struct with the vertex format
 
 
 
-TerrainApplication::TerrainApplication()
-    : Application(800, 800, "Terrain demo"), m_gridX(128), m_gridY(128), m_shaderProgram(0)
+Particles::Particles()
+    : Application(800, 800, "Terrain demo"), m_gridX(16), m_gridY(16), m_shaderProgram(0)
 {
 }
 
-void TerrainApplication::Initialize()
+void Particles::Initialize()
 {
     Application::Initialize();
 
@@ -49,15 +29,7 @@ void TerrainApplication::Initialize()
     BuildShaders();
 
     // (todo) 01.1: Create containers for the vertex position
-    struct Vertex {
-        Vector3 position;
-        Vector2 texCoord;
-        Vector3 color;
-        Vector3 normal;
-    };
-
     std::vector<Vertex> temp;
-    std::vector<Vertex> vertices;
     std::vector<int> indices;
 
     // (todo) 01.1: Fill in vertex data
@@ -73,46 +45,10 @@ void TerrainApplication::Initialize()
     float xoffset = 1.0f / (float) m_gridX;
     float yoffset = 1.0f / (float) m_gridY;
 
-    float lacunarity = 2.0f;
-    float gain = 0.5f;
-    int octaves = 4;
-    float frequency = 0.05f;
-    float amplitude = 0.2f;
-
     for (int x = 0; x <= m_gridX; ++x) {
         for (int y = 0; y <= m_gridY; ++y) {
-            float z = stb_perlin_fbm_noise3(
-                    (float) x * frequency, (float) y * frequency, 0.0f, lacunarity, gain, octaves) * amplitude;
-            Vector3 position = {((float) x * xoffset) - 0.5f, ((float) y * yoffset) - 0.5f, z};
-            Vector2 texCoord = {x % 2 == 0 ? 0.0f : 1.0f, y % 2 == 0 ? 0.0f : 1.0f};
-
-            // Linearly interpolate z value in range [-1; 1]. Map to range [0;1]
-            float mono       = (std::lerp(0.0f, 1.0f, z / amplitude) + 1.0f) / 2.0f;
-            Vector3 color    = {1.0f, 1.0f, 1.0f};//{ mono, mono, mono };
-            temp.push_back({position, texCoord, color, {1.0f, 1.0f, 1.0f}});
-        }
-    }
-
-    int i = 0;
-    for (int x = 0; x <= m_gridX; ++x) {
-        for (int y = 0; y <= m_gridY; ++y) {
-            Vertex v = temp.at(i);
-
-            Vector3 dummy = {1.0f, 1.0f, 1.0f};
-
-            Vector3 left  = y == 0       ? dummy : temp.at(i - 1).position;
-            Vector3 right = y == m_gridX ? dummy : temp.at(i + 1).position;
-            Vector3 up    = x == m_gridY ? dummy : temp.at(i + m_gridX).position;
-            Vector3 down  = x == 0       ? dummy : temp.at(i - m_gridX).position;
-
-            float dx = (right.z - left.z) / (right.y - left.y);
-            float dy = (up.z - down.z) / (up.x - down.x);
-            Vector3 normal = {dx, dy, 1.0f};
-            normal.Normalize();
-
-            vertices.push_back( {v.position, v.texCoord, v.color, normal} );
-
-            i++;
+            Vector3 position = {((float) x * xoffset) - 0.5f, ((float) y * yoffset) - 0.5f, 0.0f};
+            vertices.push_back({ position });
         }
     }
 
@@ -143,15 +79,6 @@ void TerrainApplication::Initialize()
     VertexAttribute position(Data::Type::Float, 3);
     vao.SetAttribute(0, position, 0, sizeof(Vertex));
 
-    VertexAttribute texture(Data::Type::Float, 2);
-    vao.SetAttribute(1, texture, sizeof(Vector3), sizeof(Vertex));
-
-    VertexAttribute color(Data::Type::Float, 3);
-    vao.SetAttribute(2, color, sizeof(Vector3) + sizeof(Vector2), sizeof(Vertex));
-
-    VertexAttribute normal(Data::Type::Float, 3);
-    vao.SetAttribute(3, normal, sizeof(Vector3) + sizeof(Vector2) + sizeof(Vector3), sizeof(Vertex));
-
     // (todo) 01.5: Initialize EBO
     ebo.Bind();
     ebo.AllocateData<int>(std::span(indices));
@@ -166,14 +93,23 @@ void TerrainApplication::Initialize()
 
 }
 
-void TerrainApplication::Update()
+void Particles::Update()
 {
     Application::Update();
+
+    auto p = vertices.begin();
+
+    float threshold = 0.5f;
+
+    vbo.Bind();
+    vbo.UpdateData(std::span(vertices), 0);
+    vao.Bind();
+
 
     UpdateOutputMode();
 }
 
-void TerrainApplication::Render()
+void Particles::Render()
 {
     Application::Render();
 
@@ -188,16 +124,16 @@ void TerrainApplication::Render()
     //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     //glDrawArrays(GL_TRIANGLES, 0, m_gridY * m_gridX * 6);
     glEnable(GL_DEPTH_TEST);
-    glDrawElements(GL_TRIANGLES, indicesSize, GL_UNSIGNED_INT, 0);
+    glDrawElements(GL_POINTS, indicesSize, GL_UNSIGNED_INT, 0);
 
 }
 
-void TerrainApplication::Cleanup()
+void Particles::Cleanup()
 {
     Application::Cleanup();
 }
 
-void TerrainApplication::BuildShaders()
+void Particles::BuildShaders()
 {
     const char* vertexShaderSource = "#version 330 core\n"
         "layout (location = 0) in vec3 aPos;\n"
@@ -284,7 +220,7 @@ void TerrainApplication::BuildShaders()
     m_shaderProgram = shaderProgram;
 }
 
-void TerrainApplication::UpdateOutputMode()
+void Particles::UpdateOutputMode()
 {
     for (int i = 0; i <= 4; ++i)
     {
