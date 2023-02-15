@@ -16,6 +16,21 @@ protected:
     void Render() override;
 
 private:
+
+    // Structure defining that Particle data
+    struct Particle
+    {
+        glm::vec2 position;
+        // (todo) 02.X: Add more vertex attributes
+        float particleSize;
+        float birth;
+        float duration;
+        glm::vec3 color;
+        glm::vec2 velocity;
+        glm::vec2 gravity;
+
+    };
+
     // Initialize the VBO and VAO
     void InitializeGeometry();
 
@@ -26,7 +41,7 @@ private:
     void LoadAndCompileShader(Shader& shader, const char* path);
 
     // Emit a new particle
-    void EmitParticle(const glm::vec2& position);
+    void EmitParticle(const Particle& particle);
 
     // Helper methods for random values
     static float Random01();
@@ -52,4 +67,6 @@ private:
 
     // Max number of particles that can exist at the same time
     const unsigned int m_particleCapacity;
+
+    int m_timeLocation;
 };

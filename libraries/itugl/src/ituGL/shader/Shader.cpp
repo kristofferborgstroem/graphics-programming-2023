@@ -43,7 +43,10 @@ void Shader::SetSource(std::span<const char*> source)
     GLsizei count = static_cast<GLsizei>(source.size());
     const char** sources = source.data();
 
+    Handle handle = GetHandle();
+
     // (todo) 02.1: Set the shader source code
+    glShaderSource(handle, count, sources, nullptr);
 
 }
 
@@ -55,7 +58,7 @@ bool Shader::Compile()
     Handle handle = GetHandle();
 
     // (todo) 02.1: Compile the shader
-
+    glCompileShader(handle);
 
     return IsCompiled();
 }
