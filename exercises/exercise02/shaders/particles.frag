@@ -12,6 +12,6 @@ void main()
 {
 	// (todo) 02.3: Compute alpha using the built-in variable gl_PointCoord
 
-	float intensity = (1.0 - length (gl_PointCoord * 2 - 1)) * ((duration - age) / duration);
+	float intensity = (1.0 - length (gl_PointCoord * 2 - 1));
 	FragColor = vec4(Color, intensity);
 }
