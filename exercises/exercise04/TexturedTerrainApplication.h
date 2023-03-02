@@ -37,6 +37,11 @@ private:
 private:
     unsigned int m_gridX, m_gridY;
 
+    glm::vec2 lastMouse;
+    float mouseSensitivity = 100.0f;
+    float yaw = 0.0f;
+    float pitch = 0.0f;
+
     Camera m_camera;
 
     ShaderLoader m_vertexShaderLoader;
@@ -46,9 +51,20 @@ private:
     std::shared_ptr<Material> m_defaultMaterial;
 
     // (todo) 04.X: Add additional materials
+    std::shared_ptr<Material> m_terrainMaterial1;
+    std::shared_ptr<Material> m_terrainMaterial2;
+    std::shared_ptr<Material> m_terrainMaterial3;
+    std::shared_ptr<Material> m_terrainMaterial4;
+
+    std::shared_ptr<Material> m_waterMaterial;
 
 
     std::shared_ptr<Texture2DObject> m_defaultTexture;
 
     // (todo) 04.X: Add additional textures
+    std::shared_ptr<Texture2DObject> m_grassTexture;
+    std::shared_ptr<Texture2DObject> m_rockTexture;
+    std::shared_ptr<Texture2DObject> m_snowTexture;
+    std::shared_ptr<Texture2DObject> m_dirtTexture;
+    std::shared_ptr<Texture2DObject> m_waterTexture;
 };

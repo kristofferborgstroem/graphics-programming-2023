@@ -10,6 +10,7 @@ Window::Window(int width, int height, const char* title) : m_window(nullptr)
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
     m_window = glfwCreateWindow(width, height, title, nullptr, nullptr);
+    glfwSetInputMode(m_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 }
 
 // If we have an internal GLFW window, destroy it

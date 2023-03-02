@@ -40,7 +40,8 @@ void TexturedTerrainApplication::Initialize()
     GetDevice().EnableFeature(GL_DEPTH_TEST);
 
     //Enable wireframe
-    GetDevice().SetWireframeEnabled(true);
+    //GetDevice().SetWireframeEnabled(true);
+
 }
 
 void TexturedTerrainApplication::Update()
@@ -49,13 +50,43 @@ void TexturedTerrainApplication::Update()
 
     const Window& window = GetMainWindow();
 
+
     glm::vec2 mousePosition = window.GetMousePosition(true);
-    m_camera.SetViewMatrix(glm::vec3(0.0f, 15.0f, 15.0f), glm::vec3(mousePosition, 0.0f));
+    static bool firstMouse = true;
+
+    if (firstMouse) {
+        lastMouse = mousePosition;
+        firstMouse = false;
+    }
+
+    auto deltaMouse = (mousePosition - lastMouse) * mouseSensitivity;
+    yaw += deltaMouse.x;
+    pitch += deltaMouse.y;
+    lastMouse = mousePosition;
+
+    if (pitch > 89.0f) {
+        pitch = 89.0f;
+    } else if (pitch < -89.0f) {
+        pitch = -89.0f;
+    }
+
+    auto camPosition = glm::vec3(12.0f, 7.0f, 0.0f);
+    float x = glm::cos(glm::radians(yaw)) * glm::cos(glm::radians(pitch));
+    float y = glm::sin(glm::radians(pitch));
+    float z = glm::sin(glm::radians(yaw)) * glm::cos(glm::radians(pitch));
+    auto lookAt = camPosition + glm::vec3(x, y, z);
+
+
+    //m_camera.SetViewMatrix(glm::vec3(0.0f, 15.0f, 15.0f), glm::vec3(mousePosition, 0.0f));
+    m_camera.SetViewMatrix(camPosition, lookAt);
 
     int width, height;
     window.GetDimensions(width, height);
     float aspectRatio = static_cast<float>(width) / height;
     m_camera.SetPerspectiveProjectionMatrix(1.0f, aspectRatio, 0.1f, 100.0f);
+
+    m_waterMaterial->SetUniformValue("TextureOffset", glm::vec2( GetCurrentTime() * 1.0f, 0.0f));
+    m_waterMaterial->SetUniformValue("CurrentTime", GetCurrentTime());
 }
 
 void TexturedTerrainApplication::Render()
@@ -66,13 +97,23 @@ void TexturedTerrainApplication::Render()
     GetDevice().Clear(true, Color(0.0f, 0.0f, 0.0f, 1.0f), true, 1.0f);
 
     // Terrain patches
-    DrawObject(m_terrainPatch, *m_defaultMaterial, glm::scale(glm::vec3(10.0f)));
+    DrawObject(m_terrainPatch, *m_terrainMaterial1, glm::scale(glm::vec3(10.0f)));
 
     // (todo) 04.2: Add more patches here
-    
+    DrawObject(m_terrainPatch, *m_terrainMaterial2, glm::scale(glm::vec3(10.0f)) * glm::translate(glm::vec3(0.0f, 0.0f, -1.0f)));
+    DrawObject(m_terrainPatch, *m_terrainMaterial3, glm::scale(glm::vec3(10.0f)) * glm::translate(glm::vec3(-1.0f, 0.0f, -1.0f)));
+    DrawObject(m_terrainPatch, *m_terrainMaterial4, glm::scale(glm::vec3(10.0f)) * glm::translate(glm::vec3(-1.0f, 0.0f, 0.0f)));
+
+    // (todo) 04.2: Add more patches here
+
 
     // Water patches
     // (todo) 04.5: Add water planes
+    DrawObject(m_terrainPatch, *m_waterMaterial, glm::scale(glm::vec3(10.0f)) * glm::translate(glm::vec3(0.0f, -0.1f, 0.0f)));
+    DrawObject(m_terrainPatch, *m_waterMaterial, glm::scale(glm::vec3(10.0f)) * glm::translate(glm::vec3(0.0f, -0.1f, -1.0f)));
+    DrawObject(m_terrainPatch, *m_waterMaterial, glm::scale(glm::vec3(10.0f)) * glm::translate(glm::vec3(-1.0f, -0.1f, -1.0f)));
+    DrawObject(m_terrainPatch, *m_waterMaterial, glm::scale(glm::vec3(10.0f)) * glm::translate(glm::vec3(-1.0f, -0.1f, 0.0f)));
+
 
 }
 
@@ -81,6 +122,11 @@ void TexturedTerrainApplication::InitializeTextures()
     m_defaultTexture = CreateDefaultTexture();
 
     // (todo) 04.3: Load terrain textures here
+    m_grassTexture = LoadTexture("textures/grass.jpg");
+    m_rockTexture = LoadTexture("textures/rock.jpg");
+    m_snowTexture = LoadTexture("textures/snow.jpg");
+    m_dirtTexture = LoadTexture("textures/dirt.png");
+    m_waterTexture = LoadTexture("textures/water.png");
 
 
     // (todo) 04.5: Load water texture here
@@ -101,10 +147,45 @@ void TexturedTerrainApplication::InitializeMaterials()
 
     // (todo) 04.1: Add terrain shader and material here
 
+    Shader terrainVS = m_vertexShaderLoader.Load("shaders/terrain.vert");
+    Shader terrainFS = m_fragmentShaderLoader.Load("shaders/terrain.frag");
+    std::shared_ptr<ShaderProgram> terrainShaderProgram = std::make_shared<ShaderProgram>();
+    terrainShaderProgram->Build(terrainVS, terrainFS);
 
+    m_terrainMaterial1 = std::make_shared<Material>(terrainShaderProgram);
+    m_terrainMaterial1->SetUniformValue("Color", glm::vec4(1.0f));
+    m_terrainMaterial1->SetUniformValue("HeightMap", CreateHeightMap(m_gridX, m_gridY, {0, 0}));
+    m_terrainMaterial1->SetUniformValue("AlbedoDirt", m_dirtTexture);
+    m_terrainMaterial1->SetUniformValue("DirtRange", glm::vec2(-0.8f, -0.4f));
+    m_terrainMaterial1->SetUniformValue("AlbedoGrass", m_grassTexture);
+    m_terrainMaterial1->SetUniformValue("GrassRange", glm::vec2(0.5f, 0.9f));
+    m_terrainMaterial1->SetUniformValue("AlbedoRock", m_rockTexture);
+    m_terrainMaterial1->SetUniformValue("RockRange", glm::vec2(2.5f, 3.0f));
+    m_terrainMaterial1->SetUniformValue("AlbedoSnow", m_snowTexture);
+    m_terrainMaterial1->SetUniformValue("TextureScale", glm::vec2(0.08f));
+
+    m_terrainMaterial2 = std::make_shared<Material>(*m_terrainMaterial1);
+    m_terrainMaterial2->SetUniformValue("HeightMap", CreateHeightMap(m_gridX, m_gridY, {-1.0, 0.0}));
+    m_terrainMaterial3 = std::make_shared<Material>(*m_terrainMaterial1);
+    m_terrainMaterial3->SetUniformValue("HeightMap", CreateHeightMap(m_gridX, m_gridY, {-1.0, -1.0}));
+    m_terrainMaterial4 = std::make_shared<Material>(*m_terrainMaterial1);
+    m_terrainMaterial4->SetUniformValue("HeightMap", CreateHeightMap(m_gridX, m_gridY, {0.0, -1.0}));
 
     // (todo) 04.5: Add water shader and material here
 
+    Shader waterVS = m_vertexShaderLoader.Load("shaders/water.vert");
+    Shader waterFS = m_fragmentShaderLoader.Load("shaders/water.frag");
+    std::shared_ptr<ShaderProgram> waterShaderProgram = std::make_shared<ShaderProgram>();
+    waterShaderProgram->Build(waterVS, waterFS);
+
+    m_waterMaterial = std::make_shared<Material>(waterShaderProgram);
+    m_waterMaterial->SetUniformValue("Color", glm::vec4(1.0f, 1.0f, 1.0f, 0.8f));
+    m_waterMaterial->SetUniformValue("AlbedoWater", m_waterTexture);
+    m_waterMaterial->SetUniformValue("TextureScale", glm::vec2(0.2f));
+    m_waterMaterial->SetUniformValue("TextureOffset", glm::vec2(0.0f));
+    m_waterMaterial->SetUniformValue("WaveLength", 0.5f);
+    m_waterMaterial->SetUniformValue("WaveAmplitude", 0.2f);
+    m_waterMaterial->SetBlendEquation(Material::BlendEquation::Max);
 
 }
 
@@ -124,8 +205,8 @@ std::shared_ptr<Texture2DObject> TexturedTerrainApplication::CreateDefaultTextur
     {
         for (int i = 0; i < width; ++i)
         {
-            pixels.push_back(1.0f);
             pixels.push_back(0.0f);
+            pixels.push_back(1.0f);
             pixels.push_back(1.0f);
             pixels.push_back(1.0f);
         }
@@ -148,15 +229,17 @@ std::shared_ptr<Texture2DObject> TexturedTerrainApplication::LoadTexture(const c
     
     
     // (todo) 04.3: Load the texture data here
-    unsigned char* data = nullptr;
+    unsigned char* data = stbi_load(path, &width, &height, &components, 4);
 
     texture->Bind();
     texture->SetImage(0, width, height, TextureObject::FormatRGBA, TextureObject::InternalFormatRGBA, std::span<const unsigned char>(data, width * height * 4));
 
     // (todo) 04.3: Generate mipmaps
+    texture->GenerateMipmap();
 
 
     // (todo) 04.3: Release texture data
+    stbi_image_free(data);
 
 
     return texture;
@@ -167,17 +250,31 @@ std::shared_ptr<Texture2DObject> TexturedTerrainApplication::CreateHeightMap(uns
     std::shared_ptr<Texture2DObject> heightmap = std::make_shared<Texture2DObject>();
 
     std::vector<float> pixels;
+
+    float lacunarity = 2.4f;
+    float gain = 0.4f;
+    int octaves = 8;
+    float frequency = 0.05f;
+    float amplitude = 0.8f;
+
     for (unsigned int j = 0; j < height; ++j)
     {
         for (unsigned int i = 0; i < width; ++i)
         {
             // (todo) 04.1: Add pixel data
+            float x = (float) j / (float) (height - 1) + (float) coords.x;
+            float y = (float) i / (float) (width - 1) + (float) coords.y;
+            float t = stb_perlin_fbm_noise3(x, y, 0.0f, lacunarity, gain, octaves) * amplitude;
+            pixels.push_back(t);
         }
     }
 
+
     heightmap->Bind();
-    heightmap->SetImage<float>(0, width, height, TextureObject::FormatR, TextureObject::InternalFormatR16F, pixels);
+    heightmap->SetImage<float>(0, width, height, TextureObject::FormatR, TextureObject::InternalFormatR32F, pixels);
     heightmap->GenerateMipmap();
+    heightmap->SetParameter(TextureObject::ParameterEnum::WrapT, GL_CLAMP_TO_EDGE);
+    heightmap->SetParameter(TextureObject::ParameterEnum::WrapS, GL_CLAMP_TO_EDGE);
 
     return heightmap;
 }
