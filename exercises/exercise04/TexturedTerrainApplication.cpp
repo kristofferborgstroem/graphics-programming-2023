@@ -126,10 +126,9 @@ void TexturedTerrainApplication::InitializeTextures()
     m_rockTexture = LoadTexture("textures/rock.jpg");
     m_snowTexture = LoadTexture("textures/snow.jpg");
     m_dirtTexture = LoadTexture("textures/dirt.png");
-    m_waterTexture = LoadTexture("textures/water.png");
-
 
     // (todo) 04.5: Load water texture here
+    m_waterTexture = LoadTexture("textures/water.png");
 
 }
 
@@ -179,13 +178,14 @@ void TexturedTerrainApplication::InitializeMaterials()
     waterShaderProgram->Build(waterVS, waterFS);
 
     m_waterMaterial = std::make_shared<Material>(waterShaderProgram);
-    m_waterMaterial->SetUniformValue("Color", glm::vec4(1.0f, 1.0f, 1.0f, 0.8f));
+    m_waterMaterial->SetUniformValue("Color", glm::vec4(0.8f, 0.8f, 0.8f, 0.9f));
     m_waterMaterial->SetUniformValue("AlbedoWater", m_waterTexture);
     m_waterMaterial->SetUniformValue("TextureScale", glm::vec2(0.2f));
     m_waterMaterial->SetUniformValue("TextureOffset", glm::vec2(0.0f));
     m_waterMaterial->SetUniformValue("WaveLength", 0.5f);
     m_waterMaterial->SetUniformValue("WaveAmplitude", 0.2f);
-    m_waterMaterial->SetBlendEquation(Material::BlendEquation::Max);
+    m_waterMaterial->SetBlendEquation(Material::BlendEquation::Add);
+    m_waterMaterial->SetBlendParams(Material::BlendParam::SourceAlpha, Material::BlendParam::OneMinusSourceAlpha);
 
 }
 
@@ -245,7 +245,7 @@ std::shared_ptr<Texture2DObject> TexturedTerrainApplication::LoadTexture(const c
     return texture;
 }
 
-std::shared_ptr<Texture2DObject> TexturedTerrainApplication::CreateHeightMap(unsigned int width, unsigned int height, glm::ivec2 coords)
+std::shared_ptr<Texture2DObject> TexturedTerrainApplication::CreateHeightMap(unsigned int width, unsigned int height, glm::vec2 coords)
 {
     std::shared_ptr<Texture2DObject> heightmap = std::make_shared<Texture2DObject>();
 
@@ -253,17 +253,19 @@ std::shared_ptr<Texture2DObject> TexturedTerrainApplication::CreateHeightMap(uns
 
     float lacunarity = 2.4f;
     float gain = 0.4f;
-    int octaves = 8;
+    int octaves = 16;
     float frequency = 0.05f;
     float amplitude = 0.8f;
+    float offsetX = 0.0f;
+    float offsetY = -0.15f;
 
     for (unsigned int j = 0; j < height; ++j)
     {
         for (unsigned int i = 0; i < width; ++i)
         {
             // (todo) 04.1: Add pixel data
-            float x = (float) j / (float) (height - 1) + (float) coords.x;
-            float y = (float) i / (float) (width - 1) + (float) coords.y;
+            float x = (float) j / (float) (height - 1) + (float) coords.x + offsetX;
+            float y = (float) i / (float) (width - 1) + (float) coords.y + offsetY;
             float t = stb_perlin_fbm_noise3(x, y, 0.0f, lacunarity, gain, octaves) * amplitude;
             pixels.push_back(t);
         }

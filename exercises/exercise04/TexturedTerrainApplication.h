@@ -29,7 +29,7 @@ private:
     void DrawObject(const Mesh& mesh, Material& material, const glm::mat4& worldMatrix);
 
     std::shared_ptr<Texture2DObject> CreateDefaultTexture();
-    std::shared_ptr<Texture2DObject> CreateHeightMap(unsigned int width, unsigned int height, glm::ivec2 coords);
+    std::shared_ptr<Texture2DObject> CreateHeightMap(unsigned int width, unsigned int height, glm::vec2 coords);
     std::shared_ptr<Texture2DObject> LoadTexture(const char* path);
 
     void CreateTerrainMesh(Mesh& mesh, unsigned int gridX, unsigned int gridY);

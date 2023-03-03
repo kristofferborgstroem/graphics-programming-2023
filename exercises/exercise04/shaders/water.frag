@@ -13,5 +13,5 @@ uniform vec2 TextureOffset;
 
 void main()
 {
-    FragColor = texture(AlbedoWater, (TexCoord + TextureOffset) * TextureScale) * Color;
+    FragColor = vec4(texture(AlbedoWater, (TexCoord + TextureOffset) * TextureScale).rgb * (WorldPosition.y + 2.0), 1.0) * Color;
 }
