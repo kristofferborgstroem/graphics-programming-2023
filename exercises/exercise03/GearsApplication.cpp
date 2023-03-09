@@ -42,7 +42,7 @@ void GearsApplication::Update()
 
     float aspectRatio = static_cast<float>(width) / height;
 
-    bool perspective = true;
+    bool perspective = false;
     if (perspective)
     {
         m_camera.SetPerspectiveProjectionMatrix(static_cast<float>(std::numbers::pi) * 0.5f, aspectRatio, 0.1f, 10.0f);
