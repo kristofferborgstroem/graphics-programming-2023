@@ -27,6 +27,8 @@ void TexturedTerrainApplication::Initialize()
 {
     Application::Initialize();
 
+    m_terrainPatch = std::make_shared<Mesh>();
+
     // Build textures and keep them in a list
     InitializeTextures();
 
@@ -227,7 +229,7 @@ std::shared_ptr<Texture2DObject> TexturedTerrainApplication::CreateHeightMap(uns
     return heightmap;
 }
 
-void TexturedTerrainApplication::DrawObject(const Mesh& mesh, Material& material, const glm::mat4& worldMatrix)
+void TexturedTerrainApplication::DrawObject(std::shared_ptr<Mesh> mesh, Material& material, const glm::mat4& worldMatrix)
 {
     material.Use();
 
@@ -237,10 +239,10 @@ void TexturedTerrainApplication::DrawObject(const Mesh& mesh, Material& material
     ShaderProgram::Location locationViewProjMatrix = shaderProgram.GetUniformLocation("ViewProjMatrix");
     material.GetShaderProgram()->SetUniform(locationViewProjMatrix, m_camera.GetViewProjectionMatrix());
 
-    mesh.DrawSubmesh(0);
+    mesh->DrawSubmesh(0);
 }
 
-void TexturedTerrainApplication::CreateTerrainMesh(Mesh& mesh, unsigned int gridX, unsigned int gridY)
+void TexturedTerrainApplication::CreateTerrainMesh(std::shared_ptr<Mesh> mesh, unsigned int gridX, unsigned int gridY)
 {
     // Define the vertex structure
     struct Vertex
@@ -304,6 +306,6 @@ void TexturedTerrainApplication::CreateTerrainMesh(Mesh& mesh, unsigned int grid
         }
     }
 
-    mesh.AddSubmesh<Vertex, unsigned int, VertexFormat::LayoutIterator>(Drawcall::Primitive::Triangles, vertices, indices,
+    mesh->AddSubmesh<Vertex, unsigned int, VertexFormat::LayoutIterator>(Drawcall::Primitive::Triangles, vertices, indices,
         vertexFormat.LayoutBegin(static_cast<int>(vertices.size()), true /* interleaved */), vertexFormat.LayoutEnd());
 }

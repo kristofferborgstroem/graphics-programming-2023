@@ -8,9 +8,10 @@
 #include <glm/gtx/transform.hpp>
 #include <imgui.h>
 #include <iostream>
+#include <ituGL/geometry/VertexFormat.h>
 
 ViewerApplication::ViewerApplication()
-    : Application(1024, 1024, "Viewer demo")
+    : Application(800, 800, "Viewer demo")
     , m_cameraPosition(0, 30, 30)
     , m_cameraTranslationSpeed(20.0f)
     , m_cameraRotationSpeed(0.5f)
@@ -27,13 +28,21 @@ void ViewerApplication::Initialize()
     // Initialize DearImGUI
     m_imGui.Initialize(GetMainWindow());
 
-    InitializeModel();
-    InitializeCamera();
-    InitializeLights();
+
+    m_quadMesh = std::make_shared<Mesh>();
+    CreateQuadMesh(m_quadMesh);
+    InitializeQuad();
 
     DeviceGL& device = GetDevice();
     device.EnableFeature(GL_DEPTH_TEST);
+    device.EnableFeature(GL_CULL_FACE);
     device.SetVSyncEnabled(true);
+
+    InitializeShadowTexture();
+    InitializeShadows();
+    InitializeModel();
+    InitializeCamera();
+    InitializeLights();
 }
 
 void ViewerApplication::Update()
@@ -65,29 +74,79 @@ void ViewerApplication::Render()
 {
     Application::Render();
 
-    // Clear color and depth
     GetDevice().Clear(true, Color(0.0f, 0.0f, 0.0f, 1.0f), true, 1.0f);
 
 
-    //ShadowPass();
+    float nearPlane = m_nearPlane;
+    float farPlane = m_farPlane;
+    float w = 20.0f;
+    glm::mat4 lightProjMatrix = glm::ortho(-w, w, -w, w, nearPlane, farPlane);
+    glm::mat4 lightViewMatrix = glm::lookAt(m_lightPosition, glm::vec3(0.0f), {0.0f, 1.0f, 0.0f});
+    m_lightSpaceMatrix = lightProjMatrix * lightViewMatrix;
+    m_shadowModel.GetMaterial(0).SetUniformValue("LightSpaceMatrix", m_lightSpaceMatrix);
+    m_shadowModel.GetMaterial(1).SetUniformValue("LightSpaceMatrix", m_lightSpaceMatrix);
+    m_shadowModel.GetMaterial(2).SetUniformValue("LightSpaceMatrix", m_lightSpaceMatrix);
+
+    ShadowPass();
+    glBindTexture(GL_TEXTURE_2D, depthMap);
+    glActiveTexture(GL_TEXTURE5);
+    m_quadModel.GetMaterial(0).GetShaderProgram()->Use();
+    ShaderProgram::Location depthMapLocation = m_quadModel.GetMaterial(0).GetUniformLocation("depthMap");
+    m_quadModel.GetMaterial(0).GetShaderProgram()->SetUniform(depthMapLocation, 5);
+    m_quadModel.Draw();
+
+    glBindTexture(GL_TEXTURE_2D, depthMap);
+    glActiveTexture(GL_TEXTURE5);
+    m_model.GetMaterial(2).GetShaderProgram()->Use();
+    depthMapLocation = m_model.GetMaterial(2).GetUniformLocation("DepthMap");
+    m_model.GetMaterial(2).GetShaderProgram()->SetUniform(depthMapLocation, 5);
+
     UpdateMaterials();
     m_model.Draw();
+
     RenderGUI();
 }
-/*
-void ViewerApplication::ShadowPass() {
-    /*
-    unsigned int depthFBO;
-    GetDevice().SetViewport(0, 0, m_shadowWidth, m_shadowHeight);
-    glGenFramebuffers(1, &depthFBO);
-    glBindFramebuffer(GL_FRAMEBUFFER, depthFBO);
-    //glClear(GL_DEPTH_BUFFER_BIT);
+
+void ViewerApplication::InitializeShadowTexture() {
+    glGenFramebuffers(1, &depthMapFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+
+    glGenTextures(1, &depthMap);
+    glBindTexture(GL_TEXTURE_2D, depthMap);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, m_shadowWidth, m_shadowHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+    float borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+
+    unsigned int depthrenderbuffer;
+    glGenRenderbuffers(1, &depthrenderbuffer);
+    glBindRenderbuffer(GL_RENDERBUFFER, depthrenderbuffer);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, m_shadowWidth, m_shadowHeight);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthrenderbuffer);
+
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        std::cout << "incomplete: " << glCheckFramebufferStatus(GL_FRAMEBUFFER) << std::endl;
+    }
+}
+
+void ViewerApplication::ShadowPass()
+{
+    GetDevice().SetViewport(0, 0,  m_shadowWidth, m_shadowHeight);
+    glCullFace(GL_FRONT);
+    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+    GetDevice().Clear(true, Color(0.0f, 0.0f, 0.0f, 1.0f), true, 1.0f);
+    m_shadowModel.Draw();
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    GetDevice().SetViewport(0, 0, 1024 * 2, 1024 * 2);
-    m_camera.SetOrthographicProjectionMatrix({0.0f, 0.0f, 0.0f}, m_lightPosition);
-}*/
-
-
+    GetDevice().SetViewport(0, 0,  m_screenWidth, m_screenHeight);
+    glCullFace(GL_BACK);
+}
 
 void ViewerApplication::Cleanup()
 {
@@ -95,6 +154,37 @@ void ViewerApplication::Cleanup()
     m_imGui.Cleanup();
 
     Application::Cleanup();
+}
+
+void ViewerApplication::InitializeQuad() {
+    Shader vertexShader = ShaderLoader::Load(Shader::VertexShader, "shaders/quad.vert");
+    Shader fragmentShader = ShaderLoader::Load(Shader::FragmentShader, "shaders/quad.frag");
+    std::shared_ptr<ShaderProgram> shaderProgram = std::make_shared<ShaderProgram>();
+    shaderProgram->Build(vertexShader, fragmentShader);
+
+    auto material = std::make_shared<Material>(shaderProgram);
+
+    m_quadModel.SetMesh(m_quadMesh);
+    m_quadModel.AddMaterial(material);
+}
+
+void ViewerApplication::InitializeShadows() {
+    Shader vertexShader = ShaderLoader::Load(Shader::VertexShader, "shaders/shadow.vert");
+    Shader fragmentShader = ShaderLoader::Load(Shader::FragmentShader, "shaders/shadow.frag");
+    std::shared_ptr<ShaderProgram> shaderProgram = std::make_shared<ShaderProgram>();
+    shaderProgram->Build(vertexShader, fragmentShader);
+
+    m_shadowMaterial = std::make_shared<Material>(shaderProgram);
+    //m_shadowMaterial->SetUniformValue("Model", glm::scale(glm::vec3(0.1f)));
+
+    ModelLoader loader(m_shadowMaterial);
+    loader.SetMaterialAttribute(VertexAttribute::Semantic::Position, "VertexPosition");
+    loader.SetCreateMaterials(true);
+    m_shadowModel = loader.Load("models/mill/Mill.obj");
+
+    m_shadowModel.GetMaterial(0).SetUniformValue("Model", glm::scale(glm::vec3(0.0f)));
+    m_shadowModel.GetMaterial(1).SetUniformValue("Model", glm::scale(glm::vec3(0.1f)));
+    m_shadowModel.GetMaterial(2).SetUniformValue("Model", glm::scale(glm::vec3(0.1f)));
 }
 
 void ViewerApplication::InitializeModel()
@@ -107,7 +197,7 @@ void ViewerApplication::InitializeModel()
 
     // Filter out uniforms that are not material properties
     ShaderUniformCollection::NameSet filteredUniforms;
-    filteredUniforms.insert("WorldMatrix");
+    //filteredUniforms.insert("WorldMatrix");
     filteredUniforms.insert("ViewProjMatrix");
     filteredUniforms.insert("LightPosition");
     filteredUniforms.insert("LightColor");
@@ -115,20 +205,24 @@ void ViewerApplication::InitializeModel()
     filteredUniforms.insert("CameraPosition");
 
     // Create reference material
-    std::shared_ptr<Material> material = std::make_shared<Material>(shaderProgram, filteredUniforms);
-    material->SetUniformValue("Color", glm::vec4(1.0f));
+    m_phongShader = std::make_shared<Material>(shaderProgram, filteredUniforms);
+    m_phongShader->SetUniformValue("Color", glm::vec4(1.0f));
 
     // Setup function
-    ShaderProgram::Location worldMatrixLocation = shaderProgram->GetUniformLocation("WorldMatrix");
+    //ShaderProgram::Location worldMatrixLocation = shaderProgram->GetUniformLocation("WorldMatrix");
     ShaderProgram::Location viewProjMatrixLocation = shaderProgram->GetUniformLocation("ViewProjMatrix");
+    ShaderProgram::Location lightSpaceMatrixLocation = shaderProgram->GetUniformLocation("LightSpaceMatrix");
+    ShaderProgram::Location drawShadowLocation = shaderProgram->GetUniformLocation("DrawShadow");
     ShaderProgram::Location lightPositionLocation = shaderProgram->GetUniformLocation("LightPosition");
     ShaderProgram::Location lightColorLocation = shaderProgram->GetUniformLocation("LightColor");
     ShaderProgram::Location ambientColorLocation = shaderProgram->GetUniformLocation("AmbientColor");
     ShaderProgram::Location camPositionLocation = shaderProgram->GetUniformLocation("CameraPosition");
-    material->SetShaderSetupFunction([=](ShaderProgram& shaderProgram)
+    m_phongShader->SetShaderSetupFunction([=](ShaderProgram& shaderProgram)
         {
-            shaderProgram.SetUniform(worldMatrixLocation, glm::scale(glm::vec3(0.1f)));
+            //shaderProgram.SetUniform(worldMatrixLocation, glm::scale(glm::vec3(0.1f)));
             shaderProgram.SetUniform(viewProjMatrixLocation, m_camera.GetViewProjectionMatrix());
+            shaderProgram.SetUniform(lightSpaceMatrixLocation, m_lightSpaceMatrix);
+            shaderProgram.SetUniform(drawShadowLocation, m_drawShadow);
 
             // (todo) 05.X: Set camera and light uniforms
             shaderProgram.SetUniform(lightPositionLocation, m_lightPosition);
@@ -139,7 +233,7 @@ void ViewerApplication::InitializeModel()
         });
 
     // Configure loader
-    ModelLoader loader(material);
+    ModelLoader loader(m_phongShader);
     loader.SetMaterialAttribute(VertexAttribute::Semantic::Position, "VertexPosition");
     loader.SetMaterialAttribute(VertexAttribute::Semantic::Normal, "VertexNormal");
     loader.SetMaterialAttribute(VertexAttribute::Semantic::TexCoord0, "VertexTexCoord");
@@ -152,13 +246,17 @@ void ViewerApplication::InitializeModel()
     Texture2DLoader texture2DLoader(TextureObject::FormatRGBA, TextureObject::InternalFormatRGBA8);
     texture2DLoader.SetFlipVertical(true);
 
-    std::shared_ptr<Texture2DObject> shadow = std::make_shared<Texture2DObject>(texture2DLoader.Load("models/mill/Ground_shadow.jpg"));
-    std::shared_ptr<Texture2DObject> ground = std::make_shared<Texture2DObject>(texture2DLoader.Load("models/mill/Ground_color.jpg"));
-    std::shared_ptr<Texture2DObject> mill = std::make_shared<Texture2DObject>(texture2DLoader.Load("models/mill/MillCat_color.jpg"));
+    m_shadowTexture = std::make_shared<Texture2DObject>(texture2DLoader.Load("models/mill/Ground_shadow.jpg"));
+    m_groundTexture = std::make_shared<Texture2DObject>(texture2DLoader.Load("models/mill/Ground_color.jpg"));
+    m_millTexture = std::make_shared<Texture2DObject>(texture2DLoader.Load("models/mill/MillCat_color.jpg"));
 
-    m_model.GetMaterial(0).SetUniformValue("Albedo", shadow);
-    m_model.GetMaterial(1).SetUniformValue("Albedo", ground);
-    m_model.GetMaterial(2).SetUniformValue("Albedo", mill);
+    m_model.GetMaterial(0).SetUniformValue("Albedo", m_shadowTexture);
+    m_model.GetMaterial(1).SetUniformValue("Albedo", m_groundTexture);
+    m_model.GetMaterial(2).SetUniformValue("Albedo", m_millTexture);
+
+    m_model.GetMaterial(0).SetUniformValue("WorldMatrix", glm::scale(glm::vec3(1.0f)));
+    m_model.GetMaterial(1).SetUniformValue("WorldMatrix", glm::scale(glm::vec3(0.1f)));
+    m_model.GetMaterial(2).SetUniformValue("WorldMatrix", glm::scale(glm::vec3(0.1f)));
 }
 
 void ViewerApplication::InitializeCamera()
@@ -168,7 +266,7 @@ void ViewerApplication::InitializeCamera()
 
     // Set perspective matrix
     float aspectRatio = GetMainWindow().GetAspectRatio();
-    m_camera.SetPerspectiveProjectionMatrix(1.0f, aspectRatio, 0.1f, 1000.0f);
+    m_camera.SetPerspectiveProjectionMatrix(1.0f, aspectRatio, 0.1f, 100.0f);
 }
 
 void ViewerApplication::InitializeLights()
@@ -185,6 +283,11 @@ void ViewerApplication::RenderGUI()
     ImGui::DragFloat("LightIntensity", &m_lightIntensity, 0.01f, 0.0f, 1.0f);
     ImGui::DragFloat3("LightPosition", &m_lightPosition.x);
     ImGui::ColorEdit3("LightColor", &m_lightColor.x);
+    ImGui::Separator();
+    ImGui::Text("DepthShader");
+    ImGui::DragFloat("nearPlane", &m_nearPlane, 0.1f, 0.0f, 10.0f);
+    ImGui::DragFloat("farPlane", &m_farPlane, 1.0f, 2.0f, 1000.0f);
+    ImGui::DragFloat("drawShadow", &m_drawShadow, 0.001f, 0.0f, 3.0f);
     ImGui::Separator();
     ImGui::Text("Mill");
     ImGui::DragFloat("AmbientReflectionMill", &m_ambientReflectionMill, 0.01f, 0.0f, 1.0f);
@@ -207,6 +310,39 @@ void ViewerApplication::RenderGUI()
     // (todo) 05.4: Add debug controls for light properties
 
     m_imGui.EndFrame();
+}
+
+void ViewerApplication::CreateQuadMesh(std::shared_ptr<Mesh> mesh) {
+
+    struct Vertex
+    {
+        Vertex() = default;
+        Vertex(const glm::vec3& position, const glm::vec2 texCoord)
+                : position(position), texCoord(texCoord) {}
+        glm::vec3 position;
+        glm::vec2 texCoord;
+    };
+
+    VertexFormat vertexFormat;
+    vertexFormat.AddVertexAttribute<float>(3);
+    vertexFormat.AddVertexAttribute<float>(2);
+
+    std::vector<Vertex> vertices;
+    std::vector<unsigned int> indices;
+
+    vertices.emplace_back(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec2(0.0f, 0.0f));
+    vertices.emplace_back(glm::vec3(1.0f, 0.0f, 0.0f), glm::vec2(1.0f, 0.0f));
+    vertices.emplace_back(glm::vec3(1.0f, 1.0f, 0.0f), glm::vec2(1.0f, 1.0f));
+    vertices.emplace_back(glm::vec3(0.0f, 1.0f, 0.0f), glm::vec2(0.0f, 1.0f));
+    indices.push_back(0);
+    indices.push_back(1);
+    indices.push_back(2);
+    indices.push_back(0);
+    indices.push_back(2);
+    indices.push_back(3);
+
+    mesh->AddSubmesh<Vertex, unsigned int, VertexFormat::LayoutIterator>(Drawcall::Primitive::Triangles, vertices, indices,
+             vertexFormat.LayoutBegin(static_cast<int>(vertices.size()), true), vertexFormat.LayoutEnd());
 }
 
 void ViewerApplication::UpdateCamera()

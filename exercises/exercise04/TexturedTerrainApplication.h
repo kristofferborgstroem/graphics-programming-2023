@@ -26,13 +26,13 @@ private:
     void InitializeMaterials();
     void InitializeMeshes();
 
-    void DrawObject(const Mesh& mesh, Material& material, const glm::mat4& worldMatrix);
+    void DrawObject(std::shared_ptr<Mesh> mesh, Material& material, const glm::mat4& worldMatrix);
 
     std::shared_ptr<Texture2DObject> CreateDefaultTexture();
     std::shared_ptr<Texture2DObject> CreateHeightMap(unsigned int width, unsigned int height, glm::ivec2 coords);
     std::shared_ptr<Texture2DObject> LoadTexture(const char* path);
 
-    void CreateTerrainMesh(Mesh& mesh, unsigned int gridX, unsigned int gridY);
+    void CreateTerrainMesh(std::shared_ptr<Mesh> mesh, unsigned int gridX, unsigned int gridY);
 
 private:
     unsigned int m_gridX, m_gridY;
@@ -42,7 +42,7 @@ private:
     ShaderLoader m_vertexShaderLoader;
     ShaderLoader m_fragmentShaderLoader;
 
-    Mesh m_terrainPatch;
+    std::shared_ptr<Mesh> m_terrainPatch;
 
     std::shared_ptr<Material> m_defaultMaterial;
     std::shared_ptr<Material> m_terrainMaterial00;
