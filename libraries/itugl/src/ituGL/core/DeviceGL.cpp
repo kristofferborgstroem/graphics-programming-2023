@@ -112,3 +112,7 @@ void DeviceGL::SetVSyncEnabled(bool enabled)
 {
     glfwSwapInterval(enabled ? 1 : 0);
 }
+
+void DeviceGL::SetCullFace(GLenum cull) {
+    glCullFace(cull);
+}

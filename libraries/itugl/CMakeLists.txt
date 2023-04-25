@@ -7,7 +7,7 @@ FOREACH(subdir ${subdirectories})
 	LIST(APPEND target_inc ${subdir_inc})
 ENDFOREACH()
 
-SET(target_src "")
+SET(target_src "" include/ituGL/texture/Texture3DObject.h src/ituGL/texture/Texture3DObject.cpp)
 FILE(GLOB subdirectories RELATIVE ${CMAKE_CURRENT_LIST_DIR}/src/ituGL ${CMAKE_CURRENT_LIST_DIR}/src/ituGL/*)
 FOREACH(subdir ${subdirectories})
 	file(GLOB_RECURSE subdir_src "${CMAKE_CURRENT_LIST_DIR}/src/ituGL/${subdir}/*.cpp" )

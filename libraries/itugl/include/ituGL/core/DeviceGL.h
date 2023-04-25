@@ -51,6 +51,9 @@ public:
 
     // enable / disable v-sync
     void SetVSyncEnabled(bool enabled);
+
+    // set cull face
+    void SetCullFace(GLenum cull);
 private:
     // Has a context been loaded? We use the context of the current window
     bool m_contextLoaded;
